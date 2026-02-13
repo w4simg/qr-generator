@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QR Code Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0095f6">
+
+<!-- Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- QR Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+<style>
+:root {
+  --bg:#fafafa;
+  --card:#ffffff;
+  --text:#262626;
+  --border:#dbdbdb;
+  --primary:#0095f6;
+}
+body.dark {
+  --bg:#121212;
+  --card:#1e1e1e;
+  --text:#f5f5f5;
+  --border:#333;
+  --primary:#4db5ff;
+}
+* {
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+h1 {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+textarea {
+  width: 100%;
+  height: 80px;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+label {
+  font-size: 13px;
+  opacity: 0.8;
+  display: block;
+  text-align: left;
+}
+button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.primary {
+  background: var(--primary);
+  color: #fff;
+}
+.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.toggle {
+  font-size: 13px;
+  opacity: 0.8;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+canvas {
+  margin: 16px 0;
+  background: #fff; /* EXTRA SAFETY */
+}
+.credit {
+  margin-top: 12px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.credit a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+</style>
+</head>
+
+<body>
+<div class="card">
+  <div class="toggle" onclick="toggleDark()">🌙 Toggle Dark Mode</div>
+
+  <h1>QR Code Generator</h1>
+
+  <textarea id="qrText" placeholder="Enter text or link..."></textarea>
+
+  <label>QR Color</label>
+  <input type="color" id="qrColor" value="#000000">
+
+  <label>Upload Logo (optional)</label>
+  <input type="file" id="logoInput" accept="image/*">
+
+  <button class="primary" onclick="generateQR()">Generate QR</button>
+
+  <canvas id="qrCanvas"></canvas>
+
+  <button class="secondary" onclick="downloadQR()">Download QR</button>
+
+  <p class="credit">
+    Made by <a href="https://instagram.com/w4simg" target="_blank">w4simg</a>
+  </p>
+</div>
+
+<script>
+const canvas = document.getElementById("qrCanvas");
+const ctx = canvas.getContext("2d");
+let uploadedLogo = null;
+
+document.getElementById("logoInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    uploadedLogo = new Image();
+    uploadedLogo.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+function generateQR() {
+  const text = document.getElementById("qrText").value.trim();
+  const color = document.getElementById("qrColor").value;
+
+  if (!text) {
+    alert("Enter text or link");
+    return;
+  }
+
+  QRCode.toCanvas(canvas, text, {
+    width: 240,
+    margin: 1,
+    color: {
+      dark: "#000000",
+      light: "#ffffff"
+    }
+  }, () => {
+    roundDots(color);
+    if (uploadedLogo) addLogo();
+  });
+}
+
+function roundDots(color) {
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  /* repaint solid white background */
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const dot = 6;
+  for (let y = 0; y < canvas.height; y += dot) {
+    for (let x = 0; x < canvas.width; x += dot) {
+      const i = (y * canvas.width + x) * 4;
+      if (img.data[i] < 128) {
+        ctx.beginPath();
+        ctx.arc(x + dot / 2, y + dot / 2, dot / 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function addLogo() {
+  const size = canvas.width * 0.22;
+  const x = (canvas.width - size) / 2;
+  const y = (canvas.height - size) / 2;
+  ctx.drawImage(uploadedLogo, x, y, size, size);
+}
+
+function downloadQR() {
+  const link = document.createElement("a");
+  link.download = "qr-code.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+function toggleDark() {
+  document.body.classList.toggle("dark");
+}
+
+/* PWA */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
